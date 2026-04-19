@@ -35,7 +35,7 @@ fn send_response(response: ToolResult) -> Result<()> {
     Ok(())
 }
 
-fn handle_initialize(params: serde_json::Value) -> Result<serde_json::Value> {
+fn handle_initialize(_params: serde_json::Value) -> Result<serde_json::Value> {
     Ok(serde_json::json!({
         "protocolVersion": "2024-11-05",
         "capabilities": {
@@ -216,4 +216,11 @@ pub fn run_mcp_server() -> Result<()> {
     }
     
     Ok(())
+}
+
+fn main() {
+    if let Err(e) = run_mcp_server() {
+        eprintln!("MCP server error: {}", e);
+        std::process::exit(1);
+    }
 }

@@ -1,9 +1,10 @@
 mod api;
 mod csv;
+mod html;
 mod mcp;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -24,15 +25,27 @@ enum Commands {
         #[arg(help = "Search query string", required = true)]
         query: String,
 
-        #[arg(short, long, help = "Output CSV file path")]
+        #[arg(short = 'o', long = "output", help = "Output CSV file path")]
         output: Option<PathBuf>,
 
-        #[arg(short, long, default_value = "100", help = "Maximum number of results")]
+        #[arg(short = 'H', long = "html-output", help = "Output HTML file path")]
+        html_output: Option<PathBuf>,
+
+        #[arg(
+            short = 'f',
+            long = "format",
+            value_enum,
+            default_value = "both",
+            help = "Output format: csv, html, or both"
+        )]
+        format: OutputFormat,
+
+        #[arg(short = 'l', long = "limit", default_value = "100", help = "Maximum number of results")]
         limit: usize,
 
         #[arg(
-            short,
-            long,
+            short = 's',
+            long = "sort",
             value_enum,
             default_value = "stars",
             help = "Sort by: stars, forks, updated"
@@ -40,8 +53,8 @@ enum Commands {
         sort: SortField,
 
         #[arg(
-            short,
-            long,
+            short = 'd',
+            long = "order",
             value_enum,
             default_value = "desc",
             help = "Sort order: asc, desc"
@@ -55,6 +68,13 @@ enum Commands {
         )]
         _stdio: bool,
     },
+}
+
+#[derive(ValueEnum, Clone, Debug)]
+enum OutputFormat {
+    Csv,
+    Html,
+    Both,
 }
 
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -92,11 +112,20 @@ impl SortOrder {
 async fn run_search(
     query: String,
     output: Option<PathBuf>,
+    html_output: Option<PathBuf>,
+    format: OutputFormat,
     limit: usize,
     sort: SortField,
     order: SortOrder,
 ) -> Result<()> {
     let client = api::GitHubClient::new();
+
+    // If html_output is specified, default to html-only format
+    let format = if html_output.is_some() && output.is_none() {
+        OutputFormat::Html
+    } else {
+        format
+    };
 
     let search_query = api::SearchQuery::new(&query)
         .with_pagination(1, limit.min(100))
@@ -115,14 +144,34 @@ async fn run_search(
 
     println!("Found {} repositories:", repos.len());
 
-    let count = if let Some(ref path) = output {
-        csv::write_csv_to_file(&repos, &path)?
-    } else {
-        csv::write_csv_to_stdout(&repos)?
-    };
+    match format {
+        OutputFormat::Csv | OutputFormat::Both => {
+            if let Some(ref path) = output {
+                let count = csv::write_csv_to_file(&repos, &path)?;
+                println!("Wrote {} repositories to CSV: {}", count, path.display());
+            } else {
+                csv::write_csv_to_stdout(&repos)?;
+            }
+        }
+        OutputFormat::Html => {}
+    }
 
-    if output.is_some() {
-        println!("\nWrote {} repositories to CSV.", count);
+    match format {
+        OutputFormat::Html | OutputFormat::Both => {
+            if let Some(ref path) = html_output {
+                let count = html::write_html_to_file(&repos, &query, &path)?;
+                println!("Wrote {} repositories to HTML: {}", count, path.display());
+            } else if output.is_some() {
+                // Auto-generate HTML from CSV path
+                let html_path = output.unwrap().with_extension("html");
+                let count = html::write_html_to_file(&repos, &query, &html_path)?;
+                println!("Wrote {} repositories to HTML: {}", count, html_path.display());
+            } else {
+                let html = html::generate_html(&repos, &query);
+                println!("{}", html);
+            }
+        }
+        OutputFormat::Csv => {}
     }
 
     Ok(())
@@ -140,11 +189,13 @@ async fn main() -> Result<()> {
         Commands::Search {
             query,
             output,
+            html_output,
+            format,
             limit,
             sort,
             order,
         } => {
-            run_search(query, output, limit, sort, order).await?;
+            run_search(query, output, html_output, format, limit, sort, order).await?;
         }
         Commands::Mcp { .. } => {
             run_mcp()?;
