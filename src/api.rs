@@ -126,6 +126,7 @@ impl GitHubClient {
 
             let response = self.search_repositories(&search_query).await?;
 
+            let items_len = response.items.len();
             for repo in response.items {
                 if all_repos.len() >= max_results {
                     return Ok(all_repos);
@@ -133,7 +134,7 @@ impl GitHubClient {
                 all_repos.push(repo);
             }
 
-            if response.items.is_empty() || all_repos.len() >= max_results {
+            if items_len == 0 || all_repos.len() >= max_results {
                 break;
             }
 
