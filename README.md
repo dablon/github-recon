@@ -1,11 +1,12 @@
 # GitHub Recon
 
-CLI tool for GitHub repository reconnaissance with CSV output and MCP server for AI agent integration.
+CLI tool for GitHub repository reconnaissance with CSV and HTML report generation. Includes MCP server for AI agent integration.
 
 ## Features
 
 - Search GitHub repositories with advanced query syntax
 - Generate CSV reports with repository metadata
+- Generate professional HTML reports with dark theme
 - Configurable sorting (stars, forks, updated)
 - MCP server implementation for AI agent integration
 - Docker deployment ready
@@ -36,6 +37,12 @@ docker run --rm -e GITHUB_TOKEN github-recon search "python" --limit 10
 github-recon search "topic:devops language:python" --limit 10 --output results.csv
 ```
 
+### HTML Report
+
+```bash
+github-recon search "python" --html-output report.html
+```
+
 ### Output to stdout
 
 ```bash
@@ -64,16 +71,18 @@ Arguments:
   QUERY    Search query string
 
 Options:
-  -o, --output PATH    Output CSV file path
-  -l, --limit N        Maximum number of results (default: 100)
-  -s, --sort FIELD     Sort by: stars, forks, updated (default: stars)
-  -d, --order ORDER   Sort order: asc, desc (default: desc)
-  -h, --help          Show help
+  -o, --output PATH      Output CSV file path
+  -H, --html-output PATH Output HTML file path
+  -f, --format FORMAT    Output format: csv, html, or both (default: both if output specified)
+  -l, --limit N         Maximum number of results (default: 100)
+  -s, --sort FIELD      Sort by: stars, forks, updated (default: stars)
+  -d, --order ORDER     Sort order: asc, desc (default: desc)
+  -h, --help            Show help
 ```
 
-## Output Format
+## Output Formats
 
-CSV with columns:
+### CSV
 
 | Column | Description |
 |--------|-------------|
@@ -85,65 +94,96 @@ CSV with columns:
 | last_updated | Last updated timestamp |
 | language | Primary programming language |
 
+### HTML Report
+
+Professional dark-themed report with:
+- GitHub-inspired styling
+- Statistics cards (total stars, forks, languages)
+- Language color coding
+- Responsive design for mobile
+- Links to repository pages
+
+**Example HTML output:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  python                                           [HEADER] │
+│  📊 5 repositories  🔍 GitHub Search  📅 Generated 2026... │
+├─────────────────────────────────────────────────────────────┤
+│  Total Stars │ Total Forks │ Languages │ Repositories       │
+│  1.3M        │ 223K        │ 3         │ 5                  │
+├─────────────────────────────────────────────────────────────┤
+│  # │ Repository          │ Description    │ Stars │ Forks  │
+│  1 │ donnemartin/        │ Learn how to   │ 343K  │ 55.4K  │
+│    │ system-design-primer │ design systems │       │        │
+│  2 │ vinta/awesome-python│ Python libs    │ 293K  │ 27.7K  │
+│  3 │ practical-tutorials/│ Project-based  │ 263K  │ 34.2K  │
+│    │ project-based-learning│ tutorials     │       │        │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ## Examples
 
-### Example 1: DevOps Python Projects
+### Example 1: HTML Report
 
 ```bash
-$ github-recon search "topic:devops language:python" --limit 5
+$ github-recon search "python" --html-output python-report.html
 
-Searching GitHub for: topic:devops language:python
-Limit: 5, Sort: stars (desc)
+Searching GitHub for: python
+Limit: 100, Sort: stars (desc)
 
-Found 5 repositories:
-Wrote 5 repositories to CSV.
+Found 100 repositories:
+Wrote 100 repositories to HTML: python-report.html
 ```
 
-**Output CSV:**
-```csv
-url,name,description,stars,forks,last_updated,language
-https://github.com/bregman-arie/devops-exercises,bregman-arie/devops-exercises,"Linux, Jenkins, AWS, SRE, Prometheus, Docker, Python, Ansible...",82079,19229,2026-04-19T17:48:12Z,Python
-https://github.com/getsentry/sentry,getsentry/sentry,"Developer-first error tracking and performance monitoring",43615,4655,2026-04-19T17:30:13Z,Python
-https://github.com/httpie/cli,httpie/cli,"HTTPie CLI - modern, user-friendly command-line HTTP client",37953,3910,2026-04-19T13:46:47Z,Python
-```
-
-### Example 2: Blockchain/Crypto Projects
+### Example 2: Both CSV and HTML
 
 ```bash
-$ github-recon search "stars:>1000 blockchain crypto" --limit 5
+$ github-recon search "machine learning" -o ml-report.csv --format both
 
-Searching GitHub for: stars:>1000 blockchain crypto
-Limit: 5, Sort: stars (desc)
+Searching GitHub for: machine learning
+Limit: 100, Sort: stars (desc)
 
-Found 5 repositories:
-Wrote 5 repositories to CSV.
+Found 100 repositories:
+Wrote 100 repositories to CSV: ml-report.csv
+Wrote 100 repositories to HTML: ml-report.html
 ```
 
-### Example 3: Save to File
+### Example 3: CSV Only
 
 ```bash
-$ github-recon search "machine learning python" --limit 20 --output ml-projects.csv
+$ github-recon search "devops" --format csv -o devops.csv
 
-Searching GitHub for: machine learning python
-Limit: 20, Sort: stars (desc)
+Searching GitHub for: devops
+Limit: 100, Sort: stars (desc)
 
-Found 20 repositories:
-Wrote 20 repositories to CSV.
+Found 100 repositories:
+Wrote 100 repositories to CSV: devops.csv
 ```
 
 ### Example 4: Docker Usage
 
 ```bash
-# With GitHub token for higher rate limits
+# HTML report
 docker run --rm \
-  -e GITHUB_TOKEN=ghp_xxxxxxxxxxxx \
-  -v $(pwd)/output:/app/output \
-  github-recon search "docker" --limit 50 --output /app/output/docker.csv
+  -e GITHUB_TOKEN=$GITHUB_TOKEN \
+  -v $(pwd)/reports:/app/reports \
+  github-recon search "kubernetes" --html-output /app/reports/k8s.html
 
-# Without token (rate limited)
+# Both formats
 docker run --rm \
-  -v $(pwd)/output:/app/output \
-  github-recon search "kubernetes" --limit 30 --output /app/output/k8s.csv
+  -e GITHUB_TOKEN=$GITHUB_TOKEN \
+  -v $(pwd)/reports:/app/reports \
+  github-recon search "rust" --limit 50 -o /app/reports/rust.csv --format both
+```
+
+### Example 5: Quick Search with Auto-HTML
+
+If you specify `--output` without `--format`, the HTML is auto-generated with the same filename but .html extension:
+
+```bash
+$ github-recon search "docker" -o docker.csv
+# Generates both docker.csv and docker.html
 ```
 
 ## GitHub Search Syntax
@@ -216,20 +256,20 @@ Search repositories:
 ## Quick Reference
 
 ```bash
-# Simple search
-github-recon search "react"
+# HTML report (default 100 repos)
+github-recon search "react" --html-output report.html
 
-# With output file
+# CSV output
 github-recon search "python" -o python.csv
 
-# Top 10 by stars
-github-recon search "javascript" -l 10 -s stars -d desc
+# Both formats
+github-recon search "rust" -o rust.csv --format both
 
-# Top 10 by forks
-github-recon search "javascript" -l 10 -s forks -d desc
+# Top 20 by forks
+github-recon search "javascript" -l 20 -s forks -d desc --html-output top20.html
 
-# Docker with token
-docker run --rm -e GITHUB_TOKEN=$GITHUB_TOKEN github-recon search "rust" -l 100 -o rust.csv
+# Docker
+docker run --rm -e GITHUB_TOKEN=$GITHUB_TOKEN github-recon search "devops" --html-output /app/report.html
 ```
 
 ## License
