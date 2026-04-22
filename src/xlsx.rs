@@ -72,7 +72,7 @@ fn write_results_sheet(worksheet: &xlsxwriter::Worksheet, repos: &[GitHubReposit
     worksheet.set_column(4, 5, 8.0)?;
     worksheet.set_column(6, 6, 12.0)?;
     worksheet.set_column(7, 7, 15.0)?;
-    worksheet.freeze_row(3);
+    worksheet.freeze_panes(3, 0);
 
     Ok(())
 }
@@ -110,7 +110,7 @@ fn write_combined_sheet(worksheet: &xlsxwriter::Worksheet, repos: &[GitHubReposi
     worksheet.set_column(4, 5, 8.0)?;
     worksheet.set_column(6, 6, 12.0)?;
     worksheet.set_column(7, 7, 15.0)?;
-    worksheet.freeze_row(2);
+    worksheet.freeze_panes(2, 0);
 
     Ok(())
 }
@@ -151,7 +151,7 @@ fn write_category_sheet(worksheet: &xlsxwriter::Worksheet, repos: &[GitHubReposi
     worksheet.set_column(4, 5, 8.0)?;
     worksheet.set_column(6, 6, 12.0)?;
     worksheet.set_column(7, 7, 15.0)?;
-    worksheet.freeze_row(2);
+    worksheet.freeze_panes(2, 0);
 
     Ok(())
 }
