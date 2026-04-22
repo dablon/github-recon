@@ -1,0 +1,35 @@
+# Multi-stage build for github-recon with xlsx support
+FROM rust:latest AS builder
+
+WORKDIR /build
+
+# Install LLVM/Clang for xlsxwriter (bindgen dependency)
+RUN apt-get update && apt-get install -y \
+    llvm-dev \
+    libclang-dev \
+    clang \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY . .
+
+# Build with release profile
+RUN rm -f Cargo.lock && cargo build --release
+
+# Slim runtime stage
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy only the binary
+COPY --from=builder /build/target/release/github-recon /app/
+COPY --from=builder /build/target/release/github-recon-mcp /app/
+
+# Default env
+ENV GITHUB_TOKEN=""
+
+ENTRYPOINT ["/app/github-recon"]

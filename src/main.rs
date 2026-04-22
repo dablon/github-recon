@@ -2,6 +2,7 @@ mod api;
 mod csv;
 mod html;
 mod mcp;
+mod xlsx;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
@@ -31,12 +32,15 @@ enum Commands {
         #[arg(short = 'H', long = "html-output", help = "Output HTML file path")]
         html_output: Option<PathBuf>,
 
+        #[arg(short = 'x', long = "xlsx-output", help = "Output Excel (XLSX) file path")]
+        xlsx_output: Option<PathBuf>,
+
         #[arg(
             short = 'f',
             long = "format",
             value_enum,
             default_value = "both",
-            help = "Output format: csv, html, or both"
+            help = "Output format: csv, html, xlsx, or both"
         )]
         format: OutputFormat,
 
@@ -74,6 +78,7 @@ enum Commands {
 enum OutputFormat {
     Csv,
     Html,
+    Xlsx,
     Both,
 }
 
@@ -113,6 +118,7 @@ async fn run_search(
     query: String,
     output: Option<PathBuf>,
     html_output: Option<PathBuf>,
+    xlsx_output: Option<PathBuf>,
     format: OutputFormat,
     limit: usize,
     sort: SortField,
@@ -120,8 +126,10 @@ async fn run_search(
 ) -> Result<()> {
     let client = api::GitHubClient::new();
 
-    // If html_output is specified, default to html-only format
-    let format = if html_output.is_some() && output.is_none() {
+    // Auto-detect format from output flags
+    let format = if xlsx_output.is_some() && output.is_none() && html_output.is_none() {
+        OutputFormat::Xlsx
+    } else if html_output.is_some() && output.is_none() && xlsx_output.is_none() {
         OutputFormat::Html
     } else {
         format
@@ -153,7 +161,7 @@ async fn run_search(
                 csv::write_csv_to_stdout(&repos)?;
             }
         }
-        OutputFormat::Html => {}
+        _ => {}
     }
 
     match format {
@@ -161,9 +169,8 @@ async fn run_search(
             if let Some(ref path) = html_output {
                 let count = html::write_html_to_file(&repos, &query, &path)?;
                 println!("Wrote {} repositories to HTML: {}", count, path.display());
-            } else if output.is_some() {
-                // Auto-generate HTML from CSV path
-                let html_path = output.unwrap().with_extension("html");
+            } else if let Some(ref path) = output {
+                let html_path = path.with_extension("html");
                 let count = html::write_html_to_file(&repos, &query, &html_path)?;
                 println!("Wrote {} repositories to HTML: {}", count, html_path.display());
             } else {
@@ -171,7 +178,21 @@ async fn run_search(
                 println!("{}", html);
             }
         }
-        OutputFormat::Csv => {}
+        _ => {}
+    }
+
+    match format {
+        OutputFormat::Xlsx | OutputFormat::Both => {
+            if let Some(ref path) = xlsx_output {
+                let count = xlsx::write_xlsx_to_file(&repos, &path, &query)?;
+                println!("Wrote {} repositories to XLSX: {}", count, path.display());
+            } else if let Some(ref path) = output {
+                let xlsx_path = path.with_extension("xlsx");
+                let count = xlsx::write_xlsx_to_file(&repos, &xlsx_path, &query)?;
+                println!("Wrote {} repositories to XLSX: {}", count, xlsx_path.display());
+            }
+        }
+        _ => {}
     }
 
     Ok(())
@@ -190,12 +211,13 @@ async fn main() -> Result<()> {
             query,
             output,
             html_output,
+            xlsx_output,
             format,
             limit,
             sort,
             order,
         } => {
-            run_search(query, output, html_output, format, limit, sort, order).await?;
+            run_search(query, output, html_output, xlsx_output, format, limit, sort, order).await?;
         }
         Commands::Mcp { .. } => {
             run_mcp()?;
