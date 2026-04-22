@@ -6,7 +6,7 @@ use std::time::Duration;
 const GITHUB_API_URL: &str = "https://api.github.com";
 const MAX_PER_PAGE: usize = 100;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct SearchQuery {
     pub query: String,
     pub page: u32,
@@ -50,7 +50,7 @@ pub struct SearchResponse {
     pub items: Vec<GitHubRepository>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct GitHubClient {
     client: Client,
     token: Option<String>,
@@ -145,7 +145,7 @@ impl GitHubClient {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 pub struct GitHubRepository {
     pub id: u64,
     pub name: String,
