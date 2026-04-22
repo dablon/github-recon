@@ -3,7 +3,7 @@ FROM rust:latest AS builder
 
 WORKDIR /build
 
-# Install LLVM/Clang for xlsxwriter (bindgen dependency)
+# Install LLVM/Clang for any native deps
 RUN apt-get update && apt-get install -y \
     llvm-dev \
     libclang-dev \
@@ -12,15 +12,17 @@ RUN apt-get update && apt-get install -y \
 
 COPY . .
 
-# Build with release profile
+# Build with release profile and static linking where possible
 RUN rm -f Cargo.lock && cargo build --release
 
-# Slim runtime stage
-FROM debian:bookworm-slim
+# Runtime stage - use Ubuntu 24.04 for glibc 2.39
+FROM ubuntu:24.04
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libssl3 \
+    python3 \
+    python3-openpyxl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
