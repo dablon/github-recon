@@ -11,7 +11,13 @@ pub fn write_xlsx_to_file(repos: &[GitHubRepository], path: &Path, query_name: &
     let csv_path = "/tmp/github_recon_data.csv";
     let mut csv_content = String::from("full_name,html_url,description,stargazers_count,forks_count,language,updated_at\n");
     for repo in repos {
-        let desc = repo.description.as_deref().unwrap_or("").replace('\n', " ").replace('"', "'");
+        let desc_raw = repo.description.as_deref().unwrap_or("");
+        // Truncate to prevent CSV field overflow (131072 limit)
+        let desc = if desc_raw.len() > 10000 {
+            &desc_raw[..10000]
+        } else {
+            desc_raw
+        }.replace('\n', " ").replace('"', "'");
         csv_content.push_str(&format!(
             "\"{}\",\"{}\",\"{}\",{},{},\"{}\",\"{}\"\n",
             repo.full_name.replace('"', "'"),
