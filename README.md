@@ -1,15 +1,18 @@
 # GitHub Recon
 
-CLI tool for GitHub repository reconnaissance with CSV and HTML report generation. Includes MCP server for AI agent integration.
+CLI tool for GitHub repository reconnaissance with CSV, HTML, and Excel (XLSX) report generation. Includes MCP server for AI agent integration and auto-category detection.
 
 ## Features
 
-- Search GitHub repositories with advanced query syntax
-- Generate CSV reports with repository metadata
-- Generate professional HTML reports with dark theme
-- Configurable sorting (stars, forks, updated)
-- MCP server implementation for AI agent integration
-- Docker deployment ready
+- **Search GitHub** repositories with advanced query syntax
+- **Generate CSV** reports with repository metadata
+- **Generate HTML** reports with dark theme styling
+- **Generate Excel (XLSX)** reports with multi-sheet, categorized output
+- **Auto-category detection** from query keywords → creates category sheets
+- **Configurable sorting** (stars, forks, updated)
+- **MCP server** implementation for AI agent integration
+- **14 E2E test scenarios** for automated validation
+- **Docker deployment** ready (multi-stage build)
 
 ## Installation
 
@@ -18,23 +21,49 @@ CLI tool for GitHub repository reconnaissance with CSV and HTML report generatio
 ```bash
 git clone https://github.com/dablon/github-recon.git
 cd github-recon
+
+# Option A: Build with Docker (recommended)
+docker build -f Dockerfile.build -t github-recon-built .
+
+# Option B: Build with Cargo (requires rust toolchain)
 cargo build --release
 ./target/release/github-recon --help
 ```
 
-### Using Docker
+### Using Docker (pre-built)
 
 ```bash
-docker build -t github-recon .
-docker run --rm -e GITHUB_TOKEN github-recon search "python" --limit 10
+docker pull ghcr.io/dablon/github-recon:latest
+# or build locally
+docker build -t github-recon-built .
 ```
 
 ## Usage
 
-### CLI Search
+### CLI Search - Basic
 
 ```bash
-github-recon search "topic:devops language:python" --limit 10 --output results.csv
+github-recon search "python" --limit 10
+github-recon search "rust web framework" --limit 50
+github-recon search "machine learning" --sort stars --order desc
+```
+
+### Excel (XLSX) Reports
+
+Excel is the flagship format — generates professional multi-sheet reports with auto-categorization:
+
+```bash
+# XLSX output with --xlsx-output flag
+github-recon search "pentest vulnerability" --limit 50 \
+  --xlsx-output report.xlsx
+
+# Auto-detect XLSX from -f xlsx flag
+github-recon search "AI agent autonomous" --limit 100 -f xlsx \
+  --output report.csv  # Generates report.xlsx
+
+# Combined with CSV output
+github-recon search "docker kubernetes" --limit 50 \
+  -o data.csv -f both
 ```
 
 ### HTML Report
@@ -43,11 +72,20 @@ github-recon search "topic:devops language:python" --limit 10 --output results.c
 github-recon search "python" --html-output report.html
 ```
 
-### Output to stdout
+### CSV Only
 
 ```bash
-github-recon search "stars:>1000 machine learning" --limit 20
+github-recon search "python" --format csv -o results.csv
 ```
+
+### Output Formats
+
+| Format | Flag | Description |
+|--------|------|-------------|
+| CSV | `--format csv` | Standard CSV output |
+| HTML | `--format html` or `--html-output` | Dark-themed HTML report |
+| XLSX | `--format xlsx` or `--xlsx-output` | Excel with auto-categorization |
+| Both | `--format both` | CSV + HTML + XLSX simultaneously |
 
 ### Sort Options
 
@@ -62,128 +100,88 @@ github-recon search "rust" --sort forks --order desc
 github-recon search "rust" --sort updated --order desc
 ```
 
-### Full Command Options
+## Excel Report Structure
+
+When using `-f xlsx` or `--xlsx-output`, the generated Excel file contains:
+
+1. **Results sheet** — All repositories sorted by stars (descending)
+2. **Category sheet** — Auto-detected from query keywords (e.g., "pentest" → "Pentest")
+3. **All Combined sheet** — Complete repository list for cross-referencing
+
+### Auto-Category Detection
+
+The CLI detects category from query keywords and creates dedicated sheets:
+
+| Keyword | Category Sheet |
+|---------|---------------|
+| pentest, penetration | Pentest |
+| vulnerability, cve | Vulnerability |
+| bug bounty, bounty | Bug Bounty |
+| recon, reconnaissance | Reconnaissance |
+| network, port scan | Network Discovery |
+| scanner | Scanner |
+| mcp | MCP |
+| ai agent, llm, autonomous | AI Agent |
+| automation | Automation |
+| exploit, payload | Exploit |
+| security, cyber | Security |
+
+Example:
+```bash
+github-recon search "AI pentest autonomous vulnerability" --limit 100 \
+  -f xlsx --output security_report.xlsx
+# Creates: Results | Pentest | Vulnerability | AI Agent | All Combined
+```
+
+### E2E Test Scenarios
+
+Run automated tests to validate functionality:
+
+```bash
+# Build test image first
+docker build -f Dockerfile.build -t github-recon-built .
+
+# Run E2E tests (14 scenarios)
+./tests/e2e.sh
+
+# Individual test examples
+docker run --rm -e GITHUB_TOKEN=$GH_TOKEN github-recon-built search "python" --limit 5
+docker run --rm -e GITHUB_TOKEN=$GH_TOKEN github-recon-built search "rust" -f xlsx --xlsx-output /tmp/rust.xlsx
+```
+
+Test coverage:
+- Help flags and CLI help
+- CSV format output
+- HTML format output
+- XLSX format output with file verification
+- Sort by stars/forks/updated
+- Sort order (asc/desc)
+- Limit parameter validation
+- MCP mode
+- Empty result handling
+- Multi-format generation
+- Category detection
+
+## Full Command Options
 
 ```
 github-recon search QUERY [OPTIONS]
 
 Arguments:
-  QUERY    Search query string
+  QUERY          Search query string (required)
 
 Options:
-  -o, --output PATH      Output CSV file path
-  -H, --html-output PATH Output HTML file path
-  -f, --format FORMAT    Output format: csv, html, or both (default: both if output specified)
-  -l, --limit N         Maximum number of results (default: 100)
-  -s, --sort FIELD      Sort by: stars, forks, updated (default: stars)
-  -d, --order ORDER     Sort order: asc, desc (default: desc)
-  -h, --help            Show help
-```
+  -o, --output PATH       Output CSV file path
+  -H, --html-output PATH  Output HTML file path
+  -x, --xlsx-output PATH  Output Excel (XLSX) file path
+  -f, --format FORMAT    Output format: csv, html, xlsx, both (default: both)
+  -l, --limit N          Maximum number of results (default: 100, max: 100)
+  -s, --sort FIELD        Sort by: stars, forks, updated (default: stars)
+  -d, --order ORDER        Sort order: asc, desc (default: desc)
+  -h, --help               Show help
 
-## Output Formats
-
-### CSV
-
-| Column | Description |
-|--------|-------------|
-| url | Repository URL |
-| name | Full repository name (owner/repo) |
-| description | Repository description |
-| stars | Star count |
-| forks | Fork count |
-| last_updated | Last updated timestamp |
-| language | Primary programming language |
-
-### HTML Report
-
-Professional dark-themed report with:
-- GitHub-inspired styling
-- Statistics cards (total stars, forks, languages)
-- Language color coding
-- Responsive design for mobile
-- Links to repository pages
-
-**Example HTML output:**
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  python                                           [HEADER] │
-│  📊 5 repositories  🔍 GitHub Search  📅 Generated 2026... │
-├─────────────────────────────────────────────────────────────┤
-│  Total Stars │ Total Forks │ Languages │ Repositories       │
-│  1.3M        │ 223K        │ 3         │ 5                  │
-├─────────────────────────────────────────────────────────────┤
-│  # │ Repository          │ Description    │ Stars │ Forks  │
-│  1 │ donnemartin/        │ Learn how to   │ 343K  │ 55.4K  │
-│    │ system-design-primer │ design systems │       │        │
-│  2 │ vinta/awesome-python│ Python libs    │ 293K  │ 27.7K  │
-│  3 │ practical-tutorials/│ Project-based  │ 263K  │ 34.2K  │
-│    │ project-based-learning│ tutorials     │       │        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Examples
-
-### Example 1: HTML Report
-
-```bash
-$ github-recon search "python" --html-output python-report.html
-
-Searching GitHub for: python
-Limit: 100, Sort: stars (desc)
-
-Found 100 repositories:
-Wrote 100 repositories to HTML: python-report.html
-```
-
-### Example 2: Both CSV and HTML
-
-```bash
-$ github-recon search "machine learning" -o ml-report.csv --format both
-
-Searching GitHub for: machine learning
-Limit: 100, Sort: stars (desc)
-
-Found 100 repositories:
-Wrote 100 repositories to CSV: ml-report.csv
-Wrote 100 repositories to HTML: ml-report.html
-```
-
-### Example 3: CSV Only
-
-```bash
-$ github-recon search "devops" --format csv -o devops.csv
-
-Searching GitHub for: devops
-Limit: 100, Sort: stars (desc)
-
-Found 100 repositories:
-Wrote 100 repositories to CSV: devops.csv
-```
-
-### Example 4: Docker Usage
-
-```bash
-# HTML report
-docker run --rm \
-  -e GITHUB_TOKEN=$GITHUB_TOKEN \
-  -v $(pwd)/reports:/app/reports \
-  github-recon search "kubernetes" --html-output /app/reports/k8s.html
-
-# Both formats
-docker run --rm \
-  -e GITHUB_TOKEN=$GITHUB_TOKEN \
-  -v $(pwd)/reports:/app/reports \
-  github-recon search "rust" --limit 50 -o /app/reports/rust.csv --format both
-```
-
-### Example 5: Quick Search with Auto-HTML
-
-If you specify `--output` without `--format`, the HTML is auto-generated with the same filename but .html extension:
-
-```bash
-$ github-recon search "docker" -o docker.csv
-# Generates both docker.csv and docker.html
+github-recon mcp [OPTIONS]
+  --stdio                 Run as MCP server (stdio mode)
 ```
 
 ## GitHub Search Syntax
@@ -207,24 +205,88 @@ github-recon search "user:dablon forks:>10"
 github-recon search "stars:>100 stars:<1000 python"
 ```
 
+## Docker Usage Examples
+
+```bash
+# XLSX report (recommended)
+docker run --rm \
+  -e GITHUB_TOKEN=$GITHUB_TOKEN \
+  -v $(pwd)/reports:/output \
+  github-recon-built search "AI pentest vulnerability" \
+  --limit 100 -f xlsx --output /output/security-report.xlsx
+
+# HTML report
+docker run --rm \
+  -e GITHUB_TOKEN=$GITHUB_TOKEN \
+  -v $(pwd)/reports:/app/reports \
+  github-recon-built search "kubernetes" --html-output /app/reports/k8s.html
+
+# CSV with auto-generated HTML
+docker run --rm \
+  -e GITHUB_TOKEN=$GITHUB_TOKEN \
+  -v $(pwd)/reports:/app/reports \
+  github-recon-built search "rust" --limit 50 -o /app/reports/rust.csv
+
+# Any topic - categories auto-detected
+docker run --rm \
+  -e GITHUB_TOKEN=$GITHUB_TOKEN \
+  -v $(pwd)/reports:/output \
+  github-recon-built search "YOUR_TOPIC_HERE" \
+  --limit 100 -f xlsx --output /output/report.xlsx
+
+# Combined formats
+docker run --rm \
+  -e GITHUB_TOKEN=$GITHUB_TOKEN \
+  github-recon-built search "machine learning" \
+  --limit 50 -o /tmp/ml.csv -f both
+```
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `GITHUB_TOKEN` | GitHub Personal Access Token (required for higher rate limits) |
+
+**Rate Limits (unauthenticated):** 60 requests/hour
+**Rate Limits (authenticated):** 5,000 requests/hour
+
+Get a token at: https://github.com/settings/tokens
+
+## Quick Reference
+
+```bash
+# Excel report (any topic)
+github-recon search "react" -f xlsx --output react.xlsx
+
+# CSV + HTML + XLSX all at once
+github-recon search "python" -o py.csv -f both
+
+# Top 20 by forks
+github-recon search "javascript" -l 20 -s forks -d desc -f xlsx --output top20.xlsx
+
+# Docker
+docker run --rm -e GITHUB_TOKEN=$GITHUB_TOKEN \
+  github-recon-built search "devops" --limit 50 \
+  -f xlsx --output /app/report.xlsx
+
+# MCP server
+github-recon mcp --stdio
+```
+
 ## MCP Server
 
 The tool includes an MCP (Model Context Protocol) server for AI agent integration:
 
 ```bash
-github-recon mcp
+github-recon mcp --stdio
 ```
 
-The MCP server accepts JSON-RPC requests with:
+### Tools
 
-### tools/list
+#### tools/list
+Returns available tools for AI agent integration.
 
-Returns available tools:
-```json
-{"jsonrpc":"2.0","id":1,"method":"tools/list"}
-```
-
-### tools/call
+#### tools/call
 
 Search repositories:
 ```json
@@ -244,33 +306,27 @@ Search repositories:
 }
 ```
 
-## Environment Variables
+## Architecture
 
-| Variable | Description |
-|----------|-------------|
-| `GITHUB_TOKEN` | GitHub Personal Access Token (for higher rate limits) |
-
-**Rate Limits (unauthenticated):** 60 requests/hour
-**Rate Limits (authenticated):** 5,000 requests/hour
-
-## Quick Reference
-
-```bash
-# HTML report (default 100 repos)
-github-recon search "react" --html-output report.html
-
-# CSV output
-github-recon search "python" -o python.csv
-
-# Both formats
-github-recon search "rust" -o rust.csv --format both
-
-# Top 20 by forks
-github-recon search "javascript" -l 20 -s forks -d desc --html-output top20.html
-
-# Docker
-docker run --rm -e GITHUB_TOKEN=$GITHUB_TOKEN github-recon search "devops" --html-output /app/report.html
 ```
+github-recon/
+├── src/
+│   ├── main.rs        # CLI entry point with clap
+│   ├── api.rs         # GitHub API client
+│   ├── csv.rs         # CSV generation
+│   ├── html.rs        # HTML report generation
+│   ├── xlsx.rs        # XLSX wrapper (calls Python)
+│   ├── mcp.rs         # MCP server implementation
+│   └── lib.rs         # Library exports
+├── scripts/
+│   └── gen_excel.py   # Python/openpyxl Excel generator
+├── tests/
+│   └── e2e.sh         # 14 E2E test scenarios
+├── Dockerfile.build   # Multi-stage Docker build
+└── README.md
+```
+
+**XLSX Generation:** Rust wrapper (`xlsx.rs`) writes CSV to temp file, calls embedded Python script (`gen_excel.py`) which uses `openpyxl` to generate the Excel workbook with formatting, freeze panes, and category sheets.
 
 ## License
 
